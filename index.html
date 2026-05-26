@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0e14">
-<title>비콘 테스트 — 공간음향 내비 검증</title>
+<title>비콘 테스트 v2 — 거리감 + 보행</title>
 <style>
   :root {
     --bg: #0a0e14;
@@ -14,6 +14,7 @@
     --dim: #6b7a8d;
     --accent: #5fd3a8;
     --warn: #e8a05f;
+    --step: #7aa7e8;
     --off: #2a3543;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -27,61 +28,50 @@
   body {
     display: flex;
     flex-direction: column;
-    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+    padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
     user-select: none;
   }
 
-  /* ── 헤더 ── */
   header {
-    padding: 18px 2px 12px;
+    padding: 14px 2px 10px;
     border-bottom: 1px solid var(--line);
   }
-  header h1 {
-    font-size: 15px; font-weight: 700; letter-spacing: -0.2px;
-  }
-  header p {
-    font-size: 12px; color: var(--dim); margin-top: 3px; line-height: 1.5;
-  }
+  header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+  header p { font-size: 11px; color: var(--dim); margin-top: 3px; line-height: 1.5; }
 
-  /* ── 컴퍼스(비콘 위치 시각화) ── */
   .stage {
     flex: 1;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 14px;
+    gap: 12px;
     min-height: 0;
+    padding: 8px 0;
   }
-  .compass {
-    position: relative;
-    width: 220px; height: 220px;
-  }
+  .compass { position: relative; width: 188px; height: 188px; }
   .ring {
     position: absolute; inset: 0;
     border-radius: 50%;
     border: 1px solid var(--line);
-    background:
-      radial-gradient(circle at center, rgba(95,211,168,0.04), transparent 70%);
+    background: radial-gradient(circle at center, rgba(95,211,168,0.04), transparent 70%);
   }
+  /* 거리 링 — 비콘이 얼마나 먼지 시각 기준 */
+  .ring.r2 { inset: 64px; opacity: 0.5; }
+  .ring.r2::before { display: none; }
   .ring::before {
-    /* 정면(12시) 표시 — 사용자가 향한 방향 */
-    content: "";
-    position: absolute;
+    content: ""; position: absolute;
     top: -5px; left: 50%; transform: translateX(-50%);
-    width: 2px; height: 14px;
-    background: var(--dim);
+    width: 2px; height: 13px; background: var(--dim);
   }
   .you {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    width: 14px; height: 14px;
+    width: 13px; height: 13px;
     border-radius: 50%;
     background: var(--ink);
     box-shadow: 0 0 0 4px rgba(232,237,244,0.08);
   }
   .you::after {
-    /* 코 방향 */
-    content: "";
-    position: absolute; bottom: 100%; left: 50%;
+    content: ""; position: absolute; bottom: 100%; left: 50%;
     transform: translateX(-50%);
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
@@ -89,8 +79,8 @@
   }
   .beacon {
     position: absolute; top: 50%; left: 50%;
-    width: 20px; height: 20px;
-    margin: -10px;
+    width: 18px; height: 18px;
+    margin: -9px;
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 16px 2px rgba(95,211,168,0.5);
@@ -103,39 +93,69 @@
     border: 1.5px solid var(--accent);
     opacity: 0;
   }
-  .beacon.ping .beacon-pulse {
-    animation: ping 0.5s ease-out;
-  }
+  .beacon.ping .beacon-pulse { animation: ping 0.5s ease-out; }
   @keyframes ping {
     0% { transform: scale(0.6); opacity: 0.8; }
     100% { transform: scale(2.2); opacity: 0; }
   }
 
-  .readout {
-    display: flex; gap: 26px;
-    font-variant-numeric: tabular-nums;
-  }
+  .readout { display: flex; gap: 20px; font-variant-numeric: tabular-nums; }
   .readout div { text-align: center; }
-  .readout .v { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .readout .v { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
   .readout .v.warn { color: var(--warn); }
-  .readout .l { font-size: 10px; color: var(--dim); margin-top: 2px; letter-spacing: 0.3px; }
+  .readout .v.step { color: var(--step); }
+  .readout .l { font-size: 9px; color: var(--dim); margin-top: 2px; letter-spacing: 0.3px; }
 
   .hint {
     font-size: 12px; color: var(--dim);
     text-align: center; line-height: 1.5;
-    min-height: 34px; padding: 0 12px;
+    min-height: 32px; padding: 0 12px;
   }
   .hint b { color: var(--accent); font-weight: 600; }
 
-  /* ── 컨트롤 ── */
+  /* 걸음 감지 디버그 바 */
+  .stepbar {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .stepbar .top {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--dim); margin-bottom: 5px;
+  }
+  .stepbar .top b { color: var(--step); font-variant-numeric: tabular-nums; }
+  .accel-track {
+    position: relative;
+    height: 26px;
+    background: #0c121b;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .accel-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(var(--step), rgba(122,167,232,0.2));
+    height: 0%;
+  }
+  .accel-thresh {
+    position: absolute; left: 0; right: 0;
+    border-top: 1px dashed var(--warn);
+    opacity: 0.7;
+  }
+  .accel-flash {
+    position: absolute; inset: 0;
+    background: var(--step); opacity: 0;
+  }
+  .accel-flash.hit { animation: flash 0.25s ease-out; }
+  @keyframes flash { 0% { opacity: 0.45; } 100% { opacity: 0; } }
+
   .controls {
     border-top: 1px solid var(--line);
-    padding: 14px 0 6px;
-    display: flex; flex-direction: column; gap: 10px;
+    padding: 12px 0 6px;
+    display: flex; flex-direction: column; gap: 9px;
   }
-  .row { display: flex; gap: 8px; }
   .seg {
-    flex: 1;
     display: flex;
     background: var(--panel);
     border: 1px solid var(--line);
@@ -147,30 +167,23 @@
     background: none; border: none;
     color: var(--dim);
     font-family: inherit; font-size: 12px; font-weight: 600;
-    padding: 9px 4px;
-    cursor: pointer;
+    padding: 9px 4px; cursor: pointer;
   }
-  .seg button.on {
-    background: var(--off);
-    color: var(--ink);
-  }
+  .seg button.on { background: var(--off); color: var(--ink); }
   .seg .label {
     flex: 0 0 auto;
     display: flex; align-items: center;
-    padding: 0 11px;
+    padding: 0 10px;
     font-size: 10px; color: var(--dim);
     border-right: 1px solid var(--line);
     letter-spacing: 0.2px;
   }
 
   .primary {
-    width: 100%;
-    padding: 15px;
-    border-radius: 12px;
-    border: none;
+    width: 100%; padding: 14px;
+    border-radius: 12px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.05s;
+    cursor: pointer; transition: background 0.15s, transform 0.05s;
   }
   .primary:active { transform: scale(0.99); }
   .primary.start { background: var(--accent); color: #06231a; }
@@ -181,89 +194,101 @@
     text-align: center; line-height: 1.6;
     padding: 4px 8px 2px;
   }
+  .note b { color: var(--accent); }
+
   .gate {
     position: fixed; inset: 0;
     background: var(--bg);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 18px; padding: 32px;
-    text-align: center;
-    z-index: 10;
+    gap: 16px; padding: 32px;
+    text-align: center; z-index: 10;
   }
   .gate h2 { font-size: 19px; }
-  .gate p { font-size: 13px; color: var(--dim); line-height: 1.7; max-width: 320px; }
+  .gate p { font-size: 13px; color: var(--dim); line-height: 1.7; max-width: 330px; }
   .gate.hidden { display: none; }
 </style>
 </head>
 <body>
 
 <div class="gate" id="gate">
-  <h2>🎧 공간음향 비콘 테스트</h2>
+  <h2>🎧 비콘 테스트 v2</h2>
   <p>
-    이어폰을 끼고, <b style="color:var(--ink)">조용한 곳</b>에서 시작하세요.<br><br>
-    가상의 비콘 하나가 공간 어딘가에 고정됩니다. 화면을 보지 말고
-    <b style="color:var(--ink)">소리만 따라</b> 그쪽으로 걸어가 보세요.<br><br>
-    검증할 것: 따라갈 만한가? 거슬리는가?
+    이어폰을 끼세요. 이번 버전은 <b style="color:var(--ink)">거리감</b>(잔향)과
+    <b style="color:var(--ink)">실제 보행 감지</b>(걸음 수)를 검증합니다.<br><br>
+    조용한 곳에서, 폰을 손에 들고 자연스럽게 걸을 수 있는 공간을 확보하세요.
   </p>
   <button class="primary start" style="max-width:280px" id="enterBtn">시작 — 권한 허용</button>
-  <p style="font-size:11px">방향 센서·오디오 권한을 요청합니다.</p>
+  <p style="font-size:11px">방향 센서 · 모션 센서 · 오디오 권한을 요청합니다.</p>
 </div>
 
 <header>
-  <h1>비콘 따라가기 테스트</h1>
-  <p>비콘이 정면에서 들리도록 몸을 돌리고 걸어가세요. 도착하면 새 비콘이 생깁니다.</p>
+  <h1>비콘 테스트 v2 — 거리감 + 보행</h1>
+  <p>비콘을 향해 실제로 걸어가세요. 폰이 걸음을 세서 거리를 줄입니다.</p>
 </header>
 
 <div class="stage">
   <div class="compass">
     <div class="ring"></div>
+    <div class="ring r2"></div>
     <div class="beacon" id="beacon"><div class="beacon-pulse"></div></div>
     <div class="you"></div>
   </div>
   <div class="readout">
     <div><div class="v" id="vAngle">--</div><div class="l">상대 각도</div></div>
-    <div><div class="v" id="vDist">--</div><div class="l">거리(추정)</div></div>
+    <div><div class="v" id="vDist">--</div><div class="l">남은 거리</div></div>
+    <div><div class="v step" id="vSteps">0</div><div class="l">걸음 수</div></div>
   </div>
   <div class="hint" id="hint">대기 중…</div>
+
+  <div class="stepbar">
+    <div class="top">
+      <span>걸음 감지 — 합성 가속도</span>
+      <span>보폭 <b id="strideTxt">0.70</b>m · 임계 <b id="threshTxt">1.15</b></span>
+    </div>
+    <div class="accel-track">
+      <div class="accel-fill" id="accelFill"></div>
+      <div class="accel-thresh" id="accelThresh"></div>
+      <div class="accel-flash" id="accelFlash"></div>
+    </div>
+  </div>
 </div>
 
 <div class="controls">
-  <div class="row">
-    <div class="seg">
-      <span class="label">소리</span>
-      <button data-mode="sound" data-val="continuous">연속</button>
-      <button data-mode="sound" data-val="ping" class="on">주기 핑</button>
-    </div>
+  <div class="seg">
+    <span class="label">거리원</span>
+    <button data-mode="src" data-val="walk" class="on">실제 보행</button>
+    <button data-mode="src" data-val="auto">자동 왕복</button>
+    <button data-mode="src" data-val="tap">탭 전진</button>
   </div>
-  <div class="row">
-    <div class="seg">
-      <span class="label">이탈단서</span>
-      <button data-mode="deviate" data-val="off">끔</button>
-      <button data-mode="deviate" data-val="filter" class="on">먹먹</button>
-      <button data-mode="deviate" data-val="tempo">빨라짐</button>
-    </div>
+  <div class="seg">
+    <span class="label">거리표현</span>
+    <button data-mode="dist" data-val="reverb" class="on">잔향</button>
+    <button data-mode="dist" data-val="volume">볼륨</button>
+    <button data-mode="dist" data-val="rate">핑간격</button>
   </div>
-  <div class="row">
-    <div class="seg">
-      <span class="label">거리표현</span>
-      <button data-mode="dist" data-val="volume" class="on">볼륨</button>
-      <button data-mode="dist" data-val="timbre">음색</button>
-      <button data-mode="dist" data-val="rate">핑간격</button>
-    </div>
+  <div class="seg">
+    <span class="label">민감도</span>
+    <button data-mode="sens" data-val="low">둔감</button>
+    <button data-mode="sens" data-val="mid" class="on">보통</button>
+    <button data-mode="sens" data-val="high">예민</button>
   </div>
   <button class="primary start" id="toggleBtn">비콘 켜기</button>
   <div class="note" id="note">
-    실제 GPS는 안 씁니다 — 걸음은 시뮬레이션이고, 검증 대상은 <b>방향감</b>입니다.
-    화면의 「정면 향함」 버튼으로 전진을 흉내 내세요.
+    <b>실제 보행</b> 모드: 폰을 들고 비콘 쪽으로 걸으세요.
+    걸음 막대가 임계선(주황)을 넘을 때마다 1걸음.
+    걸음이 안 세지면 「민감도」를, 거리가 안 맞으면 코드의 보폭을 조정하세요.
   </div>
 </div>
 
 <script>
 /* ───────────────────────────────────────────────
-   공간음향 비콘 미니 테스트
-   - 카메라/Gemini 없음. PannerNode(HRTF) 비콘 하나만.
-   - 검증 목표: 고정된 비콘을 소리만으로 따라갈 만한가.
-   - 기존 index.html의 panner/필터/compassHeading 패턴 차용.
+   비콘 테스트 v2
+   추가된 것:
+   - convolver 잔향 → 거리감 (dry/wet + 고음 감쇠 동시 매핑)
+   - DeviceMotion 기반 걸음 감지 (PDR: 걸음수 × 보폭)
+   - 자동 왕복 데모 모드 (가만히 서서 거리감만 검증)
+   - 걸음 감지 디버그 막대 (가속도 + 임계선 + 카운터)
 ─────────────────────────────────────────────── */
 
 const $ = id => document.getElementById(id);
@@ -271,38 +296,69 @@ const $ = id => document.getElementById(id);
 // ── 상태 ──
 let audioCtx = null;
 let running = false;
-let headingDeg = 0;          // 사용자가 향한 방위 (자이로)
-let headingReady = false;
+let headingDeg = 0, headingReady = false;
+let beaconWorldBearing = 0;
+let beaconDist = 8;
 
-// 비콘을 "사용자 기준 상대 위치"가 아니라 월드 좌표로 두면
-// 자이로로 머리를 돌릴 때 비콘이 공간에 고정돼 보인다.
-// 단순화를 위해 비콘 방위(월드 기준)와 거리만 들고 간다.
-let beaconWorldBearing = 0;  // 0~360, 자북 기준
-let beaconDist = 8;          // 미터 (시뮬레이션)
+let mode = { src: 'walk', dist: 'reverb', sens: 'mid' };
 
-const mode = { sound: 'ping', deviate: 'filter', dist: 'volume' };
+// 걸음 감지 파라미터
+let STRIDE = 0.70;        // 한 걸음당 미터 — 보행 테스트 후 조정
+const SENS = {            // 민감도별 걸음 피크 임계값(g 단위 변동)
+  low:  1.30,
+  mid:  1.15,
+  high: 1.00
+};
+let stepCount = 0;
+let lastStepTime = 0;
+
+// 자동 왕복 모드
+let autoPhase = 0;
 
 // ── 오디오 그래프 ──
-let src = null, panner = null, lp = null, gain = null, noiseBuf = null;
+let src = null, panner = null, lp = null;
+let dryGain = null, wetGain = null, masterGain = null;
+let reverb = null, toneBuf = null;
 let pingTimer = null;
 
-function makeNoiseBuffer(ctx) {
-  // 부드러운 핑크-ish 노이즈: 합성 삑소리보다 환경음에 가깝게
-  const len = ctx.sampleRate * 2;
+// 거리감용 임펄스 응답(작은 방 잔향)을 합성으로 생성
+function makeImpulseResponse(ctx, seconds, decay) {
+  const len = ctx.sampleRate * seconds;
+  const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return ir;
+}
+
+// 비콘 핑 음원: 짧은 어택 + 빠른 감쇠 + 풍부한 배음
+// → 부드럽게 들리되, HRTF가 쓸 고주파 성분은 살려둠 (2번 선택 반영)
+function makeToneBuffer(ctx) {
+  const dur = 0.5;
+  const len = Math.floor(ctx.sampleRate * dur);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
-  let last = 0;
+  const base = 560; // Hz — 따뜻한 중음
   for (let i = 0; i < len; i++) {
-    const white = Math.random() * 2 - 1;
-    last = (last + 0.02 * white) / 1.02;   // 저역 치우친 노이즈
-    d[i] = last * 3.5;
+    const t = i / ctx.sampleRate;
+    // 기음 + 살짝의 배음(2,3배) → HRTF 방향 단서용 고주파 확보
+    let s = Math.sin(2*Math.PI*base*t)
+          + 0.35 * Math.sin(2*Math.PI*base*2*t)
+          + 0.15 * Math.sin(2*Math.PI*base*3*t);
+    // 부드러운 어택(8ms) + 지수 감쇠 → 알람 느낌 제거, 방향 단서는 유지
+    const atk = Math.min(1, t / 0.008);
+    const env = atk * Math.exp(-t * 7);
+    d[i] = s * env * 0.5;
   }
   return buf;
 }
 
 function initAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  noiseBuf = makeNoiseBuffer(audioCtx);
+  toneBuf = makeToneBuffer(audioCtx);
 
   panner = audioCtx.createPanner();
   panner.panningModel = 'HRTF';
@@ -313,28 +369,37 @@ function initAudio() {
 
   lp = audioCtx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 1400;
+  lp.frequency.value = 3000;
 
-  gain = audioCtx.createGain();
-  gain.gain.value = 0;
+  reverb = audioCtx.createConvolver();
+  reverb.buffer = makeImpulseResponse(audioCtx, 1.6, 3.0);
 
+  // dry: 직접음 / wet: 잔향 — 거리에 따라 비율 변화
+  dryGain = audioCtx.createGain();
+  wetGain = audioCtx.createGain();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0;
+
+  // 신호 흐름: src → lp → panner ─┬─ dry ──────→ master → 출력
+  //                              └─ wet → reverb ┘
   lp.connect(panner);
-  panner.connect(gain);
-  gain.connect(audioCtx.destination);
+  panner.connect(dryGain);
+  panner.connect(wetGain);
+  wetGain.connect(reverb);
+  dryGain.connect(masterGain);
+  reverb.connect(masterGain);
+  masterGain.connect(audioCtx.destination);
 }
 
-// 비콘 월드방위 + 사용자 헤딩 → 사용자 기준 상대각
 function relativeAngle() {
   let a = beaconWorldBearing - headingDeg;
   while (a > 180) a -= 360;
   while (a < -180) a += 360;
-  return a; // -180(왼) ~ +180(오), 0 = 정면
+  return a;
 }
 
-// 상대각 + 거리 → panner 3D 좌표
 function updatePannerPosition() {
   const relRad = relativeAngle() * Math.PI / 180;
-  // x: 오른쪽 +, z: 앞쪽 -(WebAudio 관례에서 청자는 -z를 바라봄)
   const x = Math.sin(relRad) * beaconDist;
   const z = -Math.cos(relRad) * beaconDist;
   if (panner.positionX) {
@@ -346,29 +411,15 @@ function updatePannerPosition() {
   }
 }
 
-// ── 소리 재생 ──
-function startContinuous() {
-  src = audioCtx.createBufferSource();
-  src.buffer = noiseBuf;
-  src.loop = true;
-  src.connect(lp);
-  src.start();
-}
-
 function playPing() {
-  if (!running) return;
+  if (!running || !audioCtx) return;
   const s = audioCtx.createBufferSource();
-  s.buffer = noiseBuf;
-  // 핑: 노이즈 버퍼의 짧은 구간을 게이트로 끊어 부드러운 '훅' 소리
+  s.buffer = toneBuf;
   s.connect(lp);
-  const env = audioCtx.createGain();
-  // lp는 panner로 가므로 핑의 엔벨로프는 별도 게인으로 — 여기선 gain노드 재사용 대신
-  // src를 직접 lp로 보내고 전체 gain으로 음량을 잡는다.
   const now = audioCtx.currentTime;
   s.start(now);
-  s.stop(now + 0.45);
+  s.stop(now + 0.55);
 
-  // 시각 핑
   const b = $('beacon');
   b.classList.remove('ping'); void b.offsetWidth; b.classList.add('ping');
 
@@ -377,98 +428,145 @@ function playPing() {
 
 function scheduleNextPing() {
   clearTimeout(pingTimer);
-  if (mode.sound !== 'ping' || !running) return;
-  // 거리표현이 '핑간격'이면 가까울수록 자주
-  let interval = 1500;
+  if (!running) return;
+  let interval = 1300;
   if (mode.dist === 'rate') {
-    interval = 500 + Math.min(beaconDist, 20) / 20 * 2200; // 0.5s~2.7s
+    interval = 450 + Math.min(beaconDist, 20) / 20 * 2400;
   }
-  // 경로 이탈(각도 큼) + tempo 모드면 더 빠르게
-  if (mode.deviate === 'tempo' && Math.abs(relativeAngle()) > 50) {
-    interval *= 0.45;
-  }
+  // 경로 이탈 시 살짝 빠르게 (주의 환기)
+  if (Math.abs(relativeAngle()) > 55) interval *= 0.6;
   pingTimer = setTimeout(playPing, interval);
 }
 
-// ── 매 프레임 갱신: 거리/각도 → 음향 파라미터 ──
+// ── 거리 → 음향 파라미터 ──
 function applyAudioParams() {
   if (!running || !audioCtx) return;
   updatePannerPosition();
 
   const rel = relativeAngle();
-  const offCourse = Math.abs(rel) > 50;   // 50도 이상 = 경로 이탈로 간주
+  const off = Math.abs(rel) > 55;
+  const dn = Math.min(beaconDist, 25) / 25;   // 0(가까움)~1(멈)
+  const close = 1 - dn;
 
-  // 거리표현
-  let vol = 0.9;
-  if (mode.dist === 'volume') {
-    vol = 0.15 + 0.85 * (1 - Math.min(beaconDist, 25) / 25);
-  }
-  if (mode.dist === 'timbre') {
-    // 가까울수록 고음 살아남 → 또렷
-    const closeness = 1 - Math.min(beaconDist, 25) / 25;
-    lp.frequency.value = 600 + closeness * 3200;
-  }
-
-  // 경로 이탈 단서
-  if (mode.deviate === 'filter') {
-    // 이탈하면 저역필터를 닫아 먹먹하게
-    const base = (mode.dist === 'timbre') ? lp.frequency.value : 2600;
-    lp.frequency.value = offCourse ? Math.min(base, 500) : base;
-  } else if (mode.deviate === 'off' && mode.dist !== 'timbre') {
-    lp.frequency.value = 2600;
-  }
-
-  if (gain) {
-    const target = (mode.sound === 'continuous') ? vol : Math.max(vol, 0.5);
-    gain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.08);
+  // 거리 표현
+  let dry = 0.9, wet = 0.12, vol = 0.85;
+  if (mode.dist === 'reverb') {
+    // 멀수록 wet↑ dry↓ + 고음 감쇠 → 다중 단서 거리감
+    dry = 0.85 - dn * 0.45;
+    wet = 0.10 + dn * 0.75;
+    lp.frequency.value = 900 + close * 3600;   // 멀면 먹먹, 가까우면 또렷
+    vol = 0.55 + close * 0.45;
+  } else if (mode.dist === 'volume') {
+    vol = 0.15 + close * 0.85;
+    lp.frequency.value = 3000;
+    wet = 0.15; dry = 0.9;
+  } else { // rate — 핑 간격으로 거리, 음색은 중립
+    lp.frequency.value = 3000;
+    wet = 0.18; dry = 0.88; vol = 0.8;
   }
 
-  // ── 화면 반영 ──
+  // 경로 이탈 — 저역필터 닫아 먹먹하게 (방향 어긋남 신호)
+  if (off) lp.frequency.value = Math.min(lp.frequency.value, 600);
+
+  const tc = audioCtx.currentTime;
+  dryGain.gain.setTargetAtTime(dry, tc, 0.1);
+  wetGain.gain.setTargetAtTime(wet, tc, 0.1);
+  masterGain.gain.setTargetAtTime(vol, tc, 0.1);
+
+  // ── 화면 ──
   const b = $('beacon');
-  // 컴퍼스: 정면=위(12시). 상대각만큼 회전.
-  const r = 78;
+  const r = 36 + dn * 52;   // 거리에 따라 비콘이 중심에서 멀어짐
   const a = rel * Math.PI / 180;
-  b.style.transform =
-    `translate(${Math.sin(a) * r}px, ${-Math.cos(a) * r}px)`;
-  b.classList.toggle('warn', offCourse);
+  b.style.transform = `translate(${Math.sin(a)*r}px, ${-Math.cos(a)*r}px)`;
+  b.classList.toggle('warn', off);
 
   $('vAngle').textContent =
     (rel === 0 ? '0' : (rel > 0 ? '→ ' : '← ') + Math.abs(Math.round(rel))) + '°';
-  $('vAngle').classList.toggle('warn', offCourse);
+  $('vAngle').classList.toggle('warn', off);
   $('vDist').textContent = beaconDist.toFixed(1) + ' m';
 
   let h = '';
   if (beaconDist < 1.2) h = '<b>도착!</b> 새 비콘을 생성합니다…';
-  else if (offCourse) h = '소리가 옆/뒤에서 들려요 — 그쪽으로 몸을 도세요';
-  else if (Math.abs(rel) < 12) h = '<b>정면.</b> 소리를 향해 직진하세요';
-  else h = '소리가 들리는 쪽으로 살짝 트세요';
+  else if (off) h = '소리가 옆/뒤에서 — 그쪽으로 몸을 도세요';
+  else if (Math.abs(rel) < 14) h = '<b>정면.</b> 소리를 향해 걸어가세요';
+  else h = '소리 쪽으로 살짝 트세요';
   $('hint').innerHTML = h;
 }
 
-// ── 시뮬레이션: '정면 향함'으로 한 걸음 전진 ──
-// 실제 GPS 없이, 사용자가 비콘 쪽을 보고 있을 때 전진을 흉내.
-function stepForward() {
-  if (!running) return;
-  const rel = relativeAngle();
-  // 정면을 향한 정도만큼 거리가 줄어듦 (옆을 보면 덜 줄어듦)
-  const effective = Math.cos(rel * Math.PI / 180);
-  beaconDist = Math.max(0, beaconDist - 1.0 * Math.max(0, effective));
+// ── 걸음 감지 (PDR) ──
+// DeviceMotion 의 가속도에서 합성 크기를 구하고,
+// 저역통과 → 피크 검출. 피크 1개 = 1걸음.
+let accelLP = 1.0;        // 평활된 합성 가속도(중력 단위 근사)
+let accelPeakState = false;
+let lastAccelRaw = 1.0;
 
-  if (beaconDist < 1.2) {
-    // 도착 → 새 비콘
-    setTimeout(spawnBeacon, 700);
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity;
+  if (!a) return;
+  // 합성 크기 (m/s^2) → g 근사
+  const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2) / 9.81;
+  lastAccelRaw = mag;
+  // 평활(저역) — 고주파 흔들림 제거
+  accelLP = accelLP * 0.8 + mag * 0.2;
+
+  const thresh = SENS[mode.sens];
+  // 디버그 막대 갱신
+  const fillPct = Math.min(100, (accelLP / 2.0) * 100);
+  $('accelFill').style.height = fillPct + '%';
+  $('accelThresh').style.bottom = Math.min(100,(thresh/2.0)*100) + '%';
+
+  if (!running || mode.src !== 'walk') return;
+
+  const now = performance.now();
+  // 임계 위로 올라가는 순간을 1걸음으로 — 디바운스 280ms
+  if (!accelPeakState && accelLP > thresh && now - lastStepTime > 280) {
+    accelPeakState = true;
+    registerStep();
+    lastStepTime = now;
+    const fl = $('accelFlash');
+    fl.classList.remove('hit'); void fl.offsetWidth; fl.classList.add('hit');
+  } else if (accelPeakState && accelLP < thresh * 0.82) {
+    accelPeakState = false;   // 다음 걸음 받을 준비
   }
+}
+
+function registerStep() {
+  stepCount++;
+  $('vSteps').textContent = stepCount;
+  // 걸음 → 전진. 비콘을 정면으로 향한 정도만큼 거리가 줄어듦.
+  const eff = Math.cos(relativeAngle() * Math.PI / 180);
+  if (eff > 0) beaconDist = Math.max(0, beaconDist - STRIDE * eff);
+  if (beaconDist < 1.2) setTimeout(spawnBeacon, 700);
+  applyAudioParams();
+  scheduleNextPing();
+}
+
+// ── 자동 왕복: 가만히 서서 거리감만 검증 ──
+function autoTick() {
+  if (!running || mode.src !== 'auto') return;
+  autoPhase += 0.02;
+  // 2m ↔ 9m 사인 왕복
+  beaconDist = 5.5 + 3.5 * Math.sin(autoPhase);
+  applyAudioParams();
+}
+
+// ── 탭 전진 ──
+function tapStep() {
+  if (!running || mode.src !== 'tap') return;
+  const eff = Math.cos(relativeAngle() * Math.PI / 180);
+  if (eff > 0) beaconDist = Math.max(0, beaconDist - 1.0 * eff);
+  if (beaconDist < 1.2) setTimeout(spawnBeacon, 700);
   applyAudioParams();
   scheduleNextPing();
 }
 
 function spawnBeacon() {
-  // 새 비콘: 현재 헤딩에서 ±(60~150)도 떨어진 곳, 6~14m
   const side = Math.random() < 0.5 ? -1 : 1;
-  const off = (60 + Math.random() * 90) * side;
-  beaconWorldBearing = (headingDeg + off + 360) % 360;
-  beaconDist = 6 + Math.random() * 8;
+  const offA = (55 + Math.random() * 95) * side;
+  beaconWorldBearing = (headingDeg + offA + 360) % 360;
+  beaconDist = 6 + Math.random() * 7;
   applyAudioParams();
+  scheduleNextPing();
 }
 
 // ── 자이로 ──
@@ -477,7 +575,6 @@ function onOrientation(e) {
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if (typeof e.alpha === 'number') h = 360 - e.alpha;
   if (h !== null) {
-    // 무겁게 스무딩 — 머리 흔들림/드리프트로 비콘이 출렁이지 않게
     if (!headingReady) { headingDeg = h; headingReady = true; }
     else {
       let diff = h - headingDeg;
@@ -488,7 +585,8 @@ function onOrientation(e) {
   }
 }
 
-function requestOrientation() {
+function requestSensors() {
+  // 방향
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
@@ -497,9 +595,18 @@ function requestOrientation() {
   } else {
     window.addEventListener('deviceorientation', onOrientation);
   }
+  // 모션 (걸음 감지) — iOS 13+ 는 별도 권한
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission()
+      .then(s => { if (s === 'granted') window.addEventListener('devicemotion', onMotion); })
+      .catch(() => {});
+  } else {
+    window.addEventListener('devicemotion', onMotion);
+  }
 }
 
-// 자이로가 없는 데스크톱 테스트용: 화면 드래그로 헤딩 회전
+// 데스크톱: 드래그로 헤딩 회전
 let dragX = null;
 document.addEventListener('touchstart', e => {
   if (e.target.closest('button')) return;
@@ -509,50 +616,50 @@ document.addEventListener('touchmove', e => {
   if (dragX === null) return;
   const dx = e.touches[0].clientX - dragX;
   dragX = e.touches[0].clientX;
-  if (!headingReady) headingReady = true;
+  headingReady = true;
   headingDeg = (headingDeg + dx * 0.5 + 360) % 360;
 }, {passive:true});
 document.addEventListener('touchend', () => dragX = null);
 
-// ── 컨트롤 바인딩 ──
+// ── 컨트롤 ──
 document.querySelectorAll('.seg button').forEach(btn => {
   btn.addEventListener('click', () => {
     const m = btn.dataset.mode;
     mode[m] = btn.dataset.val;
     btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
-    // 소리 모드 전환
-    if (m === 'sound') restartSound();
+    $('threshTxt').textContent = SENS[mode.sens].toFixed(2);
+    updateNote();
     applyAudioParams();
-    scheduleNextPing();
   });
 });
 
-function restartSound() {
-  if (src) { try { src.stop(); } catch(_){} src.disconnect(); src = null; }
-  clearTimeout(pingTimer);
-  if (!running) return;
-  if (mode.sound === 'continuous') startContinuous();
-  else playPing();
+function updateNote() {
+  let t = '';
+  if (mode.src === 'walk')
+    t = '<b>실제 보행</b>: 폰을 들고 비콘 쪽으로 걸으세요. 막대가 주황선을 넘으면 1걸음.';
+  else if (mode.src === 'auto')
+    t = '<b>자동 왕복</b>: 가만히 서서 비콘이 멀어졌다 가까워지는 거리감만 들어보세요.';
+  else
+    t = '<b>탭 전진</b>: 아래를 탭하면 1m씩 전진(센서 없이 빠른 점검).';
+  $('note').innerHTML = t;
 }
 
-// ── 시작/정지 ──
 function start() {
   if (!audioCtx) initAudio();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   running = true;
+  stepCount = 0; $('vSteps').textContent = '0';
   spawnBeacon();
-  restartSound();
+  playPing();
   $('toggleBtn').textContent = '비콘 끄기';
   $('toggleBtn').className = 'primary stop';
-  applyAudioParams();
 }
 
 function stop() {
   running = false;
-  if (src) { try { src.stop(); } catch(_){} src = null; }
   clearTimeout(pingTimer);
-  if (gain) gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+  if (masterGain) masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
   $('toggleBtn').textContent = '비콘 켜기';
   $('toggleBtn').className = 'primary start';
   $('hint').textContent = '정지됨';
@@ -560,26 +667,25 @@ function stop() {
 
 $('toggleBtn').addEventListener('click', () => running ? stop() : start());
 
-// '정면 향함' 전진 버튼 — note 영역을 탭하면 한 걸음
+$('note').addEventListener('click', () => { if (mode.src === 'tap') tapStep(); });
 $('note').style.cursor = 'pointer';
-$('note').addEventListener('click', stepForward);
 
-// 게이트
 $('enterBtn').addEventListener('click', () => {
-  requestOrientation();
-  // 오디오는 사용자 제스처 안에서 미리 unlock
+  requestSensors();
   if (!audioCtx) initAudio();
   audioCtx.resume();
+  $('strideTxt').textContent = STRIDE.toFixed(2);
+  $('threshTxt').textContent = SENS[mode.sens].toFixed(2);
+  updateNote();
   $('gate').classList.add('hidden');
 });
 
-// 전진 버튼을 더 눈에 띄게 — note 텍스트 갱신
-$('note').innerHTML =
-  '👆 <b style="color:var(--accent)">여기를 탭</b>하면 한 걸음 전진(시뮬레이션). ' +
-  '실제 GPS 없이 <b style="color:var(--ink)">방향감</b>만 검증합니다.';
-
-// 화면 갱신 루프 (자이로 반영)
-setInterval(() => { if (running) applyAudioParams(); }, 100);
+// 루프: 자이로 반영 + 자동왕복
+setInterval(() => {
+  if (!running) return;
+  if (mode.src === 'auto') autoTick();
+  else applyAudioParams();
+}, 80);
 </script>
 </body>
 </html>
