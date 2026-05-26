@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e14">
+<title>비콘 테스트 — 공간음향 내비 검증</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #121822;
+    --line: #1f2a38;
+    --ink: #e8edf4;
+    --dim: #6b7a8d;
+    --accent: #5fd3a8;
+    --warn: #e8a05f;
+    --off: #2a3543;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+    user-select: none;
+  }
+
+  /* ── 헤더 ── */
+  header {
+    padding: 18px 2px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 {
+    font-size: 15px; font-weight: 700; letter-spacing: -0.2px;
+  }
+  header p {
+    font-size: 12px; color: var(--dim); margin-top: 3px; line-height: 1.5;
+  }
+
+  /* ── 컴퍼스(비콘 위치 시각화) ── */
+  .stage {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    min-height: 0;
+  }
+  .compass {
+    position: relative;
+    width: 220px; height: 220px;
+  }
+  .ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background:
+      radial-gradient(circle at center, rgba(95,211,168,0.04), transparent 70%);
+  }
+  .ring::before {
+    /* 정면(12시) 표시 — 사용자가 향한 방향 */
+    content: "";
+    position: absolute;
+    top: -5px; left: 50%; transform: translateX(-50%);
+    width: 2px; height: 14px;
+    background: var(--dim);
+  }
+  .you {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: 0 0 0 4px rgba(232,237,244,0.08);
+  }
+  .you::after {
+    /* 코 방향 */
+    content: "";
+    position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 9px solid var(--ink);
+  }
+  .beacon {
+    position: absolute; top: 50%; left: 50%;
+    width: 20px; height: 20px;
+    margin: -10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 16px 2px rgba(95,211,168,0.5);
+    transition: background 0.25s;
+  }
+  .beacon.warn { background: var(--warn); box-shadow: 0 0 16px 2px rgba(232,160,95,0.5); }
+  .beacon-pulse {
+    position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    opacity: 0;
+  }
+  .beacon.ping .beacon-pulse {
+    animation: ping 0.5s ease-out;
+  }
+  @keyframes ping {
+    0% { transform: scale(0.6); opacity: 0.8; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  .readout {
+    display: flex; gap: 26px;
+    font-variant-numeric: tabular-nums;
+  }
+  .readout div { text-align: center; }
+  .readout .v { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .readout .v.warn { color: var(--warn); }
+  .readout .l { font-size: 10px; color: var(--dim); margin-top: 2px; letter-spacing: 0.3px; }
+
+  .hint {
+    font-size: 12px; color: var(--dim);
+    text-align: center; line-height: 1.5;
+    min-height: 34px; padding: 0 12px;
+  }
+  .hint b { color: var(--accent); font-weight: 600; }
+
+  /* ── 컨트롤 ── */
+  .controls {
+    border-top: 1px solid var(--line);
+    padding: 14px 0 6px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .row { display: flex; gap: 8px; }
+  .seg {
+    flex: 1;
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .seg button {
+    flex: 1;
+    background: none; border: none;
+    color: var(--dim);
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 9px 4px;
+    cursor: pointer;
+  }
+  .seg button.on {
+    background: var(--off);
+    color: var(--ink);
+  }
+  .seg .label {
+    flex: 0 0 auto;
+    display: flex; align-items: center;
+    padding: 0 11px;
+    font-size: 10px; color: var(--dim);
+    border-right: 1px solid var(--line);
+    letter-spacing: 0.2px;
+  }
+
+  .primary {
+    width: 100%;
+    padding: 15px;
+    border-radius: 12px;
+    border: none;
+    font-family: inherit; font-size: 15px; font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s;
+  }
+  .primary:active { transform: scale(0.99); }
+  .primary.start { background: var(--accent); color: #06231a; }
+  .primary.stop  { background: #2a3543; color: var(--ink); }
+
+  .note {
+    font-size: 11px; color: var(--dim);
+    text-align: center; line-height: 1.6;
+    padding: 4px 8px 2px;
+  }
+  .gate {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px; padding: 32px;
+    text-align: center;
+    z-index: 10;
+  }
+  .gate h2 { font-size: 19px; }
+  .gate p { font-size: 13px; color: var(--dim); line-height: 1.7; max-width: 320px; }
+  .gate.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <h2>🎧 공간음향 비콘 테스트</h2>
+  <p>
+    이어폰을 끼고, <b style="color:var(--ink)">조용한 곳</b>에서 시작하세요.<br><br>
+    가상의 비콘 하나가 공간 어딘가에 고정됩니다. 화면을 보지 말고
+    <b style="color:var(--ink)">소리만 따라</b> 그쪽으로 걸어가 보세요.<br><br>
+    검증할 것: 따라갈 만한가? 거슬리는가?
+  </p>
+  <button class="primary start" style="max-width:280px" id="enterBtn">시작 — 권한 허용</button>
+  <p style="font-size:11px">방향 센서·오디오 권한을 요청합니다.</p>
+</div>
+
+<header>
+  <h1>비콘 따라가기 테스트</h1>
+  <p>비콘이 정면에서 들리도록 몸을 돌리고 걸어가세요. 도착하면 새 비콘이 생깁니다.</p>
+</header>
+
+<div class="stage">
+  <div class="compass">
+    <div class="ring"></div>
+    <div class="beacon" id="beacon"><div class="beacon-pulse"></div></div>
+    <div class="you"></div>
+  </div>
+  <div class="readout">
+    <div><div class="v" id="vAngle">--</div><div class="l">상대 각도</div></div>
+    <div><div class="v" id="vDist">--</div><div class="l">거리(추정)</div></div>
+  </div>
+  <div class="hint" id="hint">대기 중…</div>
+</div>
+
+<div class="controls">
+  <div class="row">
+    <div class="seg">
+      <span class="label">소리</span>
+      <button data-mode="sound" data-val="continuous">연속</button>
+      <button data-mode="sound" data-val="ping" class="on">주기 핑</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="seg">
+      <span class="label">이탈단서</span>
+      <button data-mode="deviate" data-val="off">끔</button>
+      <button data-mode="deviate" data-val="filter" class="on">먹먹</button>
+      <button data-mode="deviate" data-val="tempo">빨라짐</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="seg">
+      <span class="label">거리표현</span>
+      <button data-mode="dist" data-val="volume" class="on">볼륨</button>
+      <button data-mode="dist" data-val="timbre">음색</button>
+      <button data-mode="dist" data-val="rate">핑간격</button>
+    </div>
+  </div>
+  <button class="primary start" id="toggleBtn">비콘 켜기</button>
+  <div class="note" id="note">
+    실제 GPS는 안 씁니다 — 걸음은 시뮬레이션이고, 검증 대상은 <b>방향감</b>입니다.
+    화면의 「정면 향함」 버튼으로 전진을 흉내 내세요.
+  </div>
+</div>
+
+<script>
+/* ───────────────────────────────────────────────
+   공간음향 비콘 미니 테스트
+   - 카메라/Gemini 없음. PannerNode(HRTF) 비콘 하나만.
+   - 검증 목표: 고정된 비콘을 소리만으로 따라갈 만한가.
+   - 기존 index.html의 panner/필터/compassHeading 패턴 차용.
+─────────────────────────────────────────────── */
+
+const $ = id => document.getElementById(id);
+
+// ── 상태 ──
+let audioCtx = null;
+let running = false;
+let headingDeg = 0;          // 사용자가 향한 방위 (자이로)
+let headingReady = false;
+
+// 비콘을 "사용자 기준 상대 위치"가 아니라 월드 좌표로 두면
+// 자이로로 머리를 돌릴 때 비콘이 공간에 고정돼 보인다.
+// 단순화를 위해 비콘 방위(월드 기준)와 거리만 들고 간다.
+let beaconWorldBearing = 0;  // 0~360, 자북 기준
+let beaconDist = 8;          // 미터 (시뮬레이션)
+
+const mode = { sound: 'ping', deviate: 'filter', dist: 'volume' };
+
+// ── 오디오 그래프 ──
+let src = null, panner = null, lp = null, gain = null, noiseBuf = null;
+let pingTimer = null;
+
+function makeNoiseBuffer(ctx) {
+  // 부드러운 핑크-ish 노이즈: 합성 삑소리보다 환경음에 가깝게
+  const len = ctx.sampleRate * 2;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    const white = Math.random() * 2 - 1;
+    last = (last + 0.02 * white) / 1.02;   // 저역 치우친 노이즈
+    d[i] = last * 3.5;
+  }
+  return buf;
+}
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  noiseBuf = makeNoiseBuffer(audioCtx);
+
+  panner = audioCtx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 1;
+  panner.maxDistance = 60;
+  panner.rolloffFactor = 0.8;
+
+  lp = audioCtx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1400;
+
+  gain = audioCtx.createGain();
+  gain.gain.value = 0;
+
+  lp.connect(panner);
+  panner.connect(gain);
+  gain.connect(audioCtx.destination);
+}
+
+// 비콘 월드방위 + 사용자 헤딩 → 사용자 기준 상대각
+function relativeAngle() {
+  let a = beaconWorldBearing - headingDeg;
+  while (a > 180) a -= 360;
+  while (a < -180) a += 360;
+  return a; // -180(왼) ~ +180(오), 0 = 정면
+}
+
+// 상대각 + 거리 → panner 3D 좌표
+function updatePannerPosition() {
+  const relRad = relativeAngle() * Math.PI / 180;
+  // x: 오른쪽 +, z: 앞쪽 -(WebAudio 관례에서 청자는 -z를 바라봄)
+  const x = Math.sin(relRad) * beaconDist;
+  const z = -Math.cos(relRad) * beaconDist;
+  if (panner.positionX) {
+    panner.positionX.value = x;
+    panner.positionY.value = 0;
+    panner.positionZ.value = z;
+  } else {
+    panner.setPosition(x, 0, z);
+  }
+}
+
+// ── 소리 재생 ──
+function startContinuous() {
+  src = audioCtx.createBufferSource();
+  src.buffer = noiseBuf;
+  src.loop = true;
+  src.connect(lp);
+  src.start();
+}
+
+function playPing() {
+  if (!running) return;
+  const s = audioCtx.createBufferSource();
+  s.buffer = noiseBuf;
+  // 핑: 노이즈 버퍼의 짧은 구간을 게이트로 끊어 부드러운 '훅' 소리
+  s.connect(lp);
+  const env = audioCtx.createGain();
+  // lp는 panner로 가므로 핑의 엔벨로프는 별도 게인으로 — 여기선 gain노드 재사용 대신
+  // src를 직접 lp로 보내고 전체 gain으로 음량을 잡는다.
+  const now = audioCtx.currentTime;
+  s.start(now);
+  s.stop(now + 0.45);
+
+  // 시각 핑
+  const b = $('beacon');
+  b.classList.remove('ping'); void b.offsetWidth; b.classList.add('ping');
+
+  scheduleNextPing();
+}
+
+function scheduleNextPing() {
+  clearTimeout(pingTimer);
+  if (mode.sound !== 'ping' || !running) return;
+  // 거리표현이 '핑간격'이면 가까울수록 자주
+  let interval = 1500;
+  if (mode.dist === 'rate') {
+    interval = 500 + Math.min(beaconDist, 20) / 20 * 2200; // 0.5s~2.7s
+  }
+  // 경로 이탈(각도 큼) + tempo 모드면 더 빠르게
+  if (mode.deviate === 'tempo' && Math.abs(relativeAngle()) > 50) {
+    interval *= 0.45;
+  }
+  pingTimer = setTimeout(playPing, interval);
+}
+
+// ── 매 프레임 갱신: 거리/각도 → 음향 파라미터 ──
+function applyAudioParams() {
+  if (!running || !audioCtx) return;
+  updatePannerPosition();
+
+  const rel = relativeAngle();
+  const offCourse = Math.abs(rel) > 50;   // 50도 이상 = 경로 이탈로 간주
+
+  // 거리표현
+  let vol = 0.9;
+  if (mode.dist === 'volume') {
+    vol = 0.15 + 0.85 * (1 - Math.min(beaconDist, 25) / 25);
+  }
+  if (mode.dist === 'timbre') {
+    // 가까울수록 고음 살아남 → 또렷
+    const closeness = 1 - Math.min(beaconDist, 25) / 25;
+    lp.frequency.value = 600 + closeness * 3200;
+  }
+
+  // 경로 이탈 단서
+  if (mode.deviate === 'filter') {
+    // 이탈하면 저역필터를 닫아 먹먹하게
+    const base = (mode.dist === 'timbre') ? lp.frequency.value : 2600;
+    lp.frequency.value = offCourse ? Math.min(base, 500) : base;
+  } else if (mode.deviate === 'off' && mode.dist !== 'timbre') {
+    lp.frequency.value = 2600;
+  }
+
+  if (gain) {
+    const target = (mode.sound === 'continuous') ? vol : Math.max(vol, 0.5);
+    gain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.08);
+  }
+
+  // ── 화면 반영 ──
+  const b = $('beacon');
+  // 컴퍼스: 정면=위(12시). 상대각만큼 회전.
+  const r = 78;
+  const a = rel * Math.PI / 180;
+  b.style.transform =
+    `translate(${Math.sin(a) * r}px, ${-Math.cos(a) * r}px)`;
+  b.classList.toggle('warn', offCourse);
+
+  $('vAngle').textContent =
+    (rel === 0 ? '0' : (rel > 0 ? '→ ' : '← ') + Math.abs(Math.round(rel))) + '°';
+  $('vAngle').classList.toggle('warn', offCourse);
+  $('vDist').textContent = beaconDist.toFixed(1) + ' m';
+
+  let h = '';
+  if (beaconDist < 1.2) h = '<b>도착!</b> 새 비콘을 생성합니다…';
+  else if (offCourse) h = '소리가 옆/뒤에서 들려요 — 그쪽으로 몸을 도세요';
+  else if (Math.abs(rel) < 12) h = '<b>정면.</b> 소리를 향해 직진하세요';
+  else h = '소리가 들리는 쪽으로 살짝 트세요';
+  $('hint').innerHTML = h;
+}
+
+// ── 시뮬레이션: '정면 향함'으로 한 걸음 전진 ──
+// 실제 GPS 없이, 사용자가 비콘 쪽을 보고 있을 때 전진을 흉내.
+function stepForward() {
+  if (!running) return;
+  const rel = relativeAngle();
+  // 정면을 향한 정도만큼 거리가 줄어듦 (옆을 보면 덜 줄어듦)
+  const effective = Math.cos(rel * Math.PI / 180);
+  beaconDist = Math.max(0, beaconDist - 1.0 * Math.max(0, effective));
+
+  if (beaconDist < 1.2) {
+    // 도착 → 새 비콘
+    setTimeout(spawnBeacon, 700);
+  }
+  applyAudioParams();
+  scheduleNextPing();
+}
+
+function spawnBeacon() {
+  // 새 비콘: 현재 헤딩에서 ±(60~150)도 떨어진 곳, 6~14m
+  const side = Math.random() < 0.5 ? -1 : 1;
+  const off = (60 + Math.random() * 90) * side;
+  beaconWorldBearing = (headingDeg + off + 360) % 360;
+  beaconDist = 6 + Math.random() * 8;
+  applyAudioParams();
+}
+
+// ── 자이로 ──
+function onOrientation(e) {
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
+  else if (typeof e.alpha === 'number') h = 360 - e.alpha;
+  if (h !== null) {
+    // 무겁게 스무딩 — 머리 흔들림/드리프트로 비콘이 출렁이지 않게
+    if (!headingReady) { headingDeg = h; headingReady = true; }
+    else {
+      let diff = h - headingDeg;
+      while (diff > 180) diff -= 360;
+      while (diff < -180) diff += 360;
+      headingDeg = (headingDeg + diff * 0.15 + 360) % 360;
+    }
+  }
+}
+
+function requestOrientation() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(s => { if (s === 'granted') window.addEventListener('deviceorientation', onOrientation); })
+      .catch(() => {});
+  } else {
+    window.addEventListener('deviceorientation', onOrientation);
+  }
+}
+
+// 자이로가 없는 데스크톱 테스트용: 화면 드래그로 헤딩 회전
+let dragX = null;
+document.addEventListener('touchstart', e => {
+  if (e.target.closest('button')) return;
+  dragX = e.touches[0].clientX;
+}, {passive:true});
+document.addEventListener('touchmove', e => {
+  if (dragX === null) return;
+  const dx = e.touches[0].clientX - dragX;
+  dragX = e.touches[0].clientX;
+  if (!headingReady) headingReady = true;
+  headingDeg = (headingDeg + dx * 0.5 + 360) % 360;
+}, {passive:true});
+document.addEventListener('touchend', () => dragX = null);
+
+// ── 컨트롤 바인딩 ──
+document.querySelectorAll('.seg button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const m = btn.dataset.mode;
+    mode[m] = btn.dataset.val;
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    // 소리 모드 전환
+    if (m === 'sound') restartSound();
+    applyAudioParams();
+    scheduleNextPing();
+  });
+});
+
+function restartSound() {
+  if (src) { try { src.stop(); } catch(_){} src.disconnect(); src = null; }
+  clearTimeout(pingTimer);
+  if (!running) return;
+  if (mode.sound === 'continuous') startContinuous();
+  else playPing();
+}
+
+// ── 시작/정지 ──
+function start() {
+  if (!audioCtx) initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  running = true;
+  spawnBeacon();
+  restartSound();
+  $('toggleBtn').textContent = '비콘 끄기';
+  $('toggleBtn').className = 'primary stop';
+  applyAudioParams();
+}
+
+function stop() {
+  running = false;
+  if (src) { try { src.stop(); } catch(_){} src = null; }
+  clearTimeout(pingTimer);
+  if (gain) gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+  $('toggleBtn').textContent = '비콘 켜기';
+  $('toggleBtn').className = 'primary start';
+  $('hint').textContent = '정지됨';
+}
+
+$('toggleBtn').addEventListener('click', () => running ? stop() : start());
+
+// '정면 향함' 전진 버튼 — note 영역을 탭하면 한 걸음
+$('note').style.cursor = 'pointer';
+$('note').addEventListener('click', stepForward);
+
+// 게이트
+$('enterBtn').addEventListener('click', () => {
+  requestOrientation();
+  // 오디오는 사용자 제스처 안에서 미리 unlock
+  if (!audioCtx) initAudio();
+  audioCtx.resume();
+  $('gate').classList.add('hidden');
+});
+
+// 전진 버튼을 더 눈에 띄게 — note 텍스트 갱신
+$('note').innerHTML =
+  '👆 <b style="color:var(--accent)">여기를 탭</b>하면 한 걸음 전진(시뮬레이션). ' +
+  '실제 GPS 없이 <b style="color:var(--ink)">방향감</b>만 검증합니다.';
+
+// 화면 갱신 루프 (자이로 반영)
+setInterval(() => { if (running) applyAudioParams(); }, 100);
+</script>
+</body>
+</html>
